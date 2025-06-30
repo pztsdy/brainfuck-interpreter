@@ -1,4 +1,4 @@
-# Brainfuck Interpreter By Piaoztsdy ![Logo](bflogo-github.png)
+![Logo](bflogo-github.png)
 
 > A lightweight and standards-compliant Brainfuck interpreter written in C++
 
