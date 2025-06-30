@@ -1,0 +1,184 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <stdexcept>
+#include <getopt.h>
+
+using namespace std;
+
+// 版本号
+const string VERSION = "1.3";
+
+// Check Mingw
+#ifndef _INC__MINGW_H
+#warning Please use Mingw compiler. Please download Mingw compiler from msys2.org
+#warning This warning is not a error.
+#endif
+
+// 解释器
+class BrainfuckInterpreter {
+public:
+    BrainfuckInterpreter(const string& program) : program_(program), program_ptr_(0), data_ptr_(0) {
+        // 初始化
+        data_.resize(30000, 0); // 30000 个单元格
+    }
+
+    // 运行 Brainfuck 程序
+    void run() {
+        while (program_ptr_ < program_.length()) {
+            char instruction = program_[program_ptr_];
+
+            switch (instruction) {
+                case '>':
+                    data_ptr_++;
+                    if (data_ptr_ >= data_.size()) {
+                        throw runtime_error("Error: Data pointer out of bounds.");
+                    }
+                    break;
+                case '<':
+                    data_ptr_--;
+                    if (data_ptr_ < 0) {
+                        throw runtime_error("Error: Data pointer out of bounds.");
+                    }
+                    break;
+                case '+':
+                    data_[data_ptr_]++;
+                    break;
+                case '-':
+                    data_[data_ptr_]--;
+                    break;
+                case '.': // 输出ASCII
+                    cout << (char)data_[data_ptr_];
+                    break;
+                case ',':
+                    char input_char;
+                    cin >> input_char;
+                    data_[data_ptr_] = input_char;
+                    break;
+                case '[':
+                    if (data_[data_ptr_] == 0) {
+                        program_ptr_ = findMatchingBracket(program_ptr_);
+                    }
+                    break;
+                case ']':
+                    if (data_[data_ptr_] != 0) {
+                        program_ptr_ = findMatchingBracket(program_ptr_);
+                    }
+                    break;
+                default:
+                    // 忽略其他所有字符
+                    break;
+            }
+            program_ptr_++;
+        }
+    }
+
+
+private:
+    string program_;	// 程序代码
+    int program_ptr_;	// 程序指针
+    int data_ptr_;		// 数据指针
+    vector<int> data_;	// 数据数组
+
+    // Find []
+    int findMatchingBracket(int start_ptr) {
+        char target_bracket = program_[start_ptr] == '[' ? ']' : '[';
+        int direction = program_[start_ptr] == '[' ? 1 : -1;
+        int bracket_count = 0;
+        int current_ptr = start_ptr + direction;
+
+        while (current_ptr >= 0 && current_ptr < program_.length()) {
+            if (program_[current_ptr] == program_[start_ptr]) {
+                bracket_count++;
+            } else if (program_[current_ptr] == target_bracket) {
+                if (bracket_count == 0) {
+                    return current_ptr;
+                }
+                bracket_count--;
+            }
+            current_ptr += direction;
+        }
+
+        throw runtime_error("Error: Unmatched bracket.");
+    }
+};
+
+// 显示Piaoztsdyの帮助信息
+void showHelp() {
+    cout << "Brainfuck Interpreter By Piaoztsdy - Version " << VERSION << endl;
+    cout << "Usage: brainfuck [options] [file]" << endl;
+    cout << "Options:" << endl;
+    cout << "  -h, --help       Show this help message" << endl;
+    cout << "  -v, --version    Show the version number" << endl;
+    cout << "  [file]           The Brainfuck program file (or read from stdin if no file is specified)" << endl;
+}
+
+int main(int argc, char* argv[]) {
+    string program;
+    bool show_version = false;
+    bool reading_from_stdin = false;
+
+    // 使用 getopt_long 处理命令行参数
+    static struct option long_options[] = {
+        {"help",    no_argument,       0, 'h'},
+        {"version", no_argument,       0, 'v'},
+        {0,         0,                 0,  0}
+    };
+    int option_index = 0;
+    int c;
+
+    while ((c = getopt_long(argc, argv, "hv", long_options, &option_index)) != -1) {
+        switch (c) {
+            case 'h':
+                showHelp();
+                return 0;
+            case 'v':
+                cout << "Brainfuck Interpreter By Piaoztsdy " << VERSION << endl;
+                return 0;
+            case '?': // 出现未知的选项
+                return 1;
+            default:
+                cerr << "Error: Invalid option." << endl;
+                return 1;
+        }
+    }
+
+
+    if (optind < argc) {
+        // 从文件加载 Brainfuck 程序
+        ifstream file(argv[optind]);
+        if (file.is_open()) {
+            string line;
+            while (getline(file, line)) {
+                program += line;
+            }
+            file.close();
+        } else {
+            cerr << "Error: Could not open file: " << argv[optind] << endl;
+            return 1;
+        }
+    } else {
+        //  如果没有提供文件名，从标准输入获取程序
+        reading_from_stdin = true; // flag
+        cout << "Reading Brainfuck program from stdin. Press Ctrl+Z to end input and execute." << endl;
+        string line;
+        while (getline(cin, line)) {
+            program += line;
+        }
+    }
+
+    try {
+        BrainfuckInterpreter interpreter(program);
+        interpreter.run();
+        if (!reading_from_stdin) {
+            cout << endl;
+        }
+
+    } catch (const exception& e) {
+        cerr << e.what() << endl;
+        return 1;
+    }
+
+    return 0;
+}
